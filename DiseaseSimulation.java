@@ -1,17 +1,22 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import javax.swing.*;
 
 public class DiseaseSimulation extends JFrame {
     private JPanel drawingPanel;
-    private JButton startButton, pauseButton, resumeButton, aboutButton;;
+    private JButton startButton, pauseButton, resumeButton, aboutButton, reportButton;
     private JTextField populationField;
     private JSpinner immunitySpinner1, immunitySpinner2, immunitySpinner3, immunitySpinner4, immunitySpinner5;
     private Timer timer;
     private Person[] population;
     private JLabel cycleCounterLabel;
-    private int cycleCount; // Variable to keep track of the cycle count
+    private int cycleCount;
+    private StringBuilder reportData;
+    private int deathCount;
+    private int recoveryCount;
 
     public DiseaseSimulation() {
         setTitle("Disease Spread Simulation");
@@ -77,15 +82,22 @@ public class DiseaseSimulation extends JFrame {
 
         aboutButton = new JButton("About");
         bottomPanel.add(aboutButton, BorderLayout.EAST);
-        add(bottomPanel, BorderLayout.SOUTH); 
+
+        reportButton = new JButton("Generate Report");
+        bottomPanel.add(reportButton, BorderLayout.CENTER);
+
+        add(bottomPanel, BorderLayout.SOUTH);
 
         startButton.addActionListener(e -> startSimulation());
         pauseButton.addActionListener(e -> timer.stop());
         resumeButton.addActionListener(e -> timer.start());
+
         aboutButton.addActionListener(e -> {
             String message = "<html><b>Pandemic Modeller - INFO3136 MOBILE DEV</b><br>August 1 2024<br>Created by: Evan Kwak, Dyllon Howard, and Jace Kendel.</html>";
             JOptionPane.showMessageDialog(this, message, "About", JOptionPane.INFORMATION_MESSAGE);
         });
+
+        reportButton.addActionListener(e -> generateReport());
     }
 
     private void startSimulation() {
@@ -104,19 +116,29 @@ public class DiseaseSimulation extends JFrame {
         population = new Person[populationSize];
         createPopulation(populationSize, immunity1, immunity2, immunity3, immunity4, immunity5);
         cycleCount = 0;
+        deathCount = 0;
+        recoveryCount = 0;
+        reportData = new StringBuilder();
+        appendReportData("Simulation started with the following parameters:\n");
+        appendReportData("Population Size: " + populationSize + "\n");
+        appendReportData("No Immunity (%): " + immunity1 + "\n");
+        appendReportData("One Shot (%): " + immunity2 + "\n");
+        appendReportData("Two Shots (%): " + immunity3 + "\n");
+        appendReportData("Three Shots (%): " + immunity4 + "\n");
+        appendReportData("Natural Immunity (%): " + immunity5 + "\n");
+        appendReportData("\nCycle data:\n");
 
-        timer = new Timer(200, new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                for (Person p : population) {
-                    p.move();
-                    p.updateInfectionStatus();
-                }
-                checkCollisions();
-                drawingPanel.repaint();
-                cycleCount++; // Increment cycle count
-                cycleCounterLabel.setText("Cycles: " + cycleCount);
+        timer = new Timer(200, (ActionEvent e) -> {
+            for (Person p : population) {
+                p.move();
+                p.updateInfectionStatus();
             }
+            checkCollisions();
+            updateStatusCounts();
+            drawingPanel.repaint();
+            cycleCount++;
+            cycleCounterLabel.setText("Cycles: " + cycleCount);
+            appendReportData("Cycle " + cycleCount + ": Population status - " + getPopulationStatus() + "\n");
         });
         timer.start();
     }
@@ -130,7 +152,6 @@ public class DiseaseSimulation extends JFrame {
                 population[index++] = new Person(i + 1, colors[i]);
             }
         }
-        // Infect one random person
         population[(int) (Math.random() * size)].setInfected(true);
     }
 
@@ -138,6 +159,50 @@ public class DiseaseSimulation extends JFrame {
         for (int i = 0; i < population.length; i++) {
             for (int j = i + 1; j < population.length; j++) {
                 population[i].checkCollision(population[j]);
+            }
+        }
+    }
+
+    private void updateStatusCounts() {
+        deathCount = 0;
+        recoveryCount = 0;
+        for (Person p : population) {
+            if (p.getColor() == Color.BLACK) {
+                deathCount++;
+            } else if (p.getColor() == Color.GREEN) {
+                recoveryCount++;
+            }
+        }
+    }
+
+    private void appendReportData(String data) {
+        reportData.append(data);
+    }
+
+    private String getPopulationStatus() {
+        int infected = 0;
+        int healthy = 0;
+        for (Person p : population) {
+            if (p.isInfected()) {
+                infected++;
+            } else if (p.getColor() == Color.YELLOW || p.getColor() == Color.BLUE || p.getColor() == Color.MAGENTA || p.getColor() == Color.ORANGE) {
+                healthy++;
+            }
+        }
+        return "Healthy: " + healthy + ", Infected: " + infected;
+    }
+
+    private void generateReport() {
+        String fileName = JOptionPane.showInputDialog(this, "Enter filename:", "Save Report", JOptionPane.PLAIN_MESSAGE);
+        if (fileName != null && !fileName.trim().isEmpty()) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName + ".txt"))) {
+                writer.write(reportData.toString());
+                writer.write("\nFinal Summary:\n");
+                writer.write("Deaths: " + deathCount + "\n");
+                writer.write("Recoveries: " + recoveryCount + "\n");
+                JOptionPane.showMessageDialog(this, "Report saved as " + fileName + ".txt", "Report Saved", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error saving report: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
