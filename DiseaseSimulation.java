@@ -1,15 +1,17 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import javax.swing.*;
 
 public class DiseaseSimulation extends JFrame {
     private JPanel drawingPanel;
-    private JButton startButton, pauseButton, resumeButton;
+    private JButton startButton, pauseButton, resumeButton, aboutButton;;
     private JTextField populationField;
     private JSpinner immunitySpinner1, immunitySpinner2, immunitySpinner3, immunitySpinner4, immunitySpinner5;
     private Timer timer;
     private Person[] population;
+    private JLabel cycleCounterLabel;
+    private int cycleCount; // Variable to keep track of the cycle count
 
     public DiseaseSimulation() {
         setTitle("Disease Spread Simulation");
@@ -69,9 +71,21 @@ public class DiseaseSimulation extends JFrame {
         };
         add(drawingPanel, BorderLayout.CENTER);
 
+        cycleCounterLabel = new JLabel("Cycles: 0");
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(cycleCounterLabel, BorderLayout.WEST);
+
+        aboutButton = new JButton("About");
+        bottomPanel.add(aboutButton, BorderLayout.EAST);
+        add(bottomPanel, BorderLayout.SOUTH); 
+
         startButton.addActionListener(e -> startSimulation());
         pauseButton.addActionListener(e -> timer.stop());
         resumeButton.addActionListener(e -> timer.start());
+        aboutButton.addActionListener(e -> {
+            String message = "<html><b>Pandemic Modeller - INFO3136 MOBILE DEV</b><br>August 1 2024<br>Created by: Evan Kwak, Dyllon Howard, and Jace Kendel.</html>";
+            JOptionPane.showMessageDialog(this, message, "About", JOptionPane.INFORMATION_MESSAGE);
+        });
     }
 
     private void startSimulation() {
@@ -89,6 +103,7 @@ public class DiseaseSimulation extends JFrame {
 
         population = new Person[populationSize];
         createPopulation(populationSize, immunity1, immunity2, immunity3, immunity4, immunity5);
+        cycleCount = 0;
 
         timer = new Timer(200, new ActionListener() {
             @Override
@@ -99,6 +114,8 @@ public class DiseaseSimulation extends JFrame {
                 }
                 checkCollisions();
                 drawingPanel.repaint();
+                cycleCount++; // Increment cycle count
+                cycleCounterLabel.setText("Cycles: " + cycleCount);
             }
         });
         timer.start();
